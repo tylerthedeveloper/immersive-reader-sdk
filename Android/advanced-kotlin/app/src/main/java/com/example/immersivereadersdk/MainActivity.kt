@@ -31,10 +31,10 @@ class MainActivity : AppCompatActivity() {
         this.supportActionBar!!.hide()
         setContentView(R.layout.activity_main)
         val immersiveReaderButton = findViewById<Button>(R.id.LaunchImmersiveReaderButton)
-        immersiveReaderButton.setOnClickListener { GlobalScope.launch { handleLaunchImmersiveReader() } }
+        immersiveReaderButton.setOnClickListener { GlobalScope.launch { handleLoadImmersiveReaderWebView() } }
     }
 
-    private suspend fun handleLaunchImmersiveReader() {
+    private suspend fun handleLoadImmersiveReaderWebView() {
         val exampleActivity = this
         val subdomain = Constants.SUBDOMAIN
         val irTitle = findViewById<TextView>(R.id.Title)
