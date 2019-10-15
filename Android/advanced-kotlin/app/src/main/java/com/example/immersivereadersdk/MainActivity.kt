@@ -6,6 +6,7 @@ package com.example.immersivereadersdk
 import android.app.Activity
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.webkit.CookieManager
 import android.webkit.WebView
 import android.widget.Button
 import android.webkit.WebViewClient
@@ -163,6 +164,13 @@ class MainActivity : AppCompatActivity() {
                 contextualWebViewSettings.setAppCacheEnabled(false)
                 contextualWebViewSettings.setSupportZoom(true)
                 contextualWebView.setInitialScale(1)
+
+                // Enables WebView Cookies
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    CookieManager.getInstance().setAcceptThirdPartyCookies(contextualWebView, true)
+                } else {
+                    CookieManager.getInstance().setAcceptCookie(true)
+                }
 
                 val contextualWebViewLayout = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
                 parentLayout.addView(contextualWebView, 0, contextualWebViewLayout)
