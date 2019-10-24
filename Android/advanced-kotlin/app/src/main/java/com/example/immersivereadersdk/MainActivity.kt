@@ -13,6 +13,7 @@ import android.webkit.WebViewClient
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.gson.*
+import io.github.cdimascio.dotenv.dotenv
 import java.io.IOException
 import java.io.*
 import java.net.HttpURLConnection
@@ -20,12 +21,25 @@ import java.net.HttpURLConnection.HTTP_OK
 import java.net.URL
 import kotlinx.coroutines.*
 import org.json.JSONObject
+import java.util.*
+import kotlin.collections.ArrayList
 
-
-// Be sure to add a Constants class (Constants.kt)
-
+// This sample app uses the Dotenv is a module that loads environment variables from a .env file to better manage secrets.
+// https://github.com/cdimascio/java-dotenv
+// Be sure to add a "env" file to the /assets folder
+// instead of '.env', use 'env'
 
 class MainActivity : AppCompatActivity() {
+
+    private val dotEnv = dotenv {
+        directory = "/assets"
+        filename = "env"
+        ignoreIfMalformed = true
+        ignoreIfMissing = true
+    }
+
+    private lateinit var contextualWebView: WebView
+    private lateinit var messageData: Message
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,13 +51,33 @@ class MainActivity : AppCompatActivity() {
 
     private suspend fun handleLoadImmersiveReaderWebView() {
         val exampleActivity = this
-        val subdomain = Constants.SUBDOMAIN
+        val subdomain = dotEnv["SUBDOMAIN"]
         val irTitle = findViewById<TextView>(R.id.Title)
-        val irText = findViewById<TextView>(R.id.Content)
-        val chunk = Chunk(irText.text.toString(), "en", "text/plain")
-        val chunks = listOf(chunk)
+        val irText1 = findViewById<TextView>(R.id.Content1)
+        val irText2 = findViewById<TextView>(R.id.Content2)
+        val appUtilities = AppUtilities(exampleActivity)
+
+        // The content of the request that's shown in the Immersive Reader.
+        // This basic example contains chunks of two different languages.
+        val chunk1 = Chunk(irText1.text.toString(), "en", "text/plain")
+        val chunk2 = Chunk(irText2.text.toString(), "fr", "text/plain")
+
+        val chunks = ArrayList<Chunk>()
+        chunks.add(chunk1)
+        chunks.add(chunk2)
+
         val data = Content(irTitle.text.toString(), chunks)
-        val options = Options("ImmersiveReader-Exit","en", 0)
+
+        // Options passed to the Immersive Reader
+        val allowFullscreen = true
+        val customDomain = ""
+        val hideExitButton = false
+        val onExit = appUtilities::exitCallback
+        val uiLang = "en"
+        val uiZIndex = 0
+        val timeoutInMilliseconds = 15000
+        val options = Options(uiLang, timeoutInMilliseconds, uiZIndex, onExit, customDomain, allowFullscreen, hideExitButton)
+
         var token: String
 
         runBlocking{
@@ -60,9 +94,9 @@ class MainActivity : AppCompatActivity() {
 
     @Throws(IOException::class)
     fun getToken(): String {
-        val clientId = Constants.CLIENT_ID
-        val clientSecret = Constants.CLIENT_SECRET
-        val tenantId = Constants.TENANT_ID
+        val clientId = dotEnv["CLIENT_ID"]
+        val clientSecret = dotEnv["CLIENT_SECRET"]
+        val tenantId = dotEnv["TENANT_ID"]
         val tokenUrl = URL("https://login.windows.net/$tenantId/oauth2/token")
         val form = "grant_type=client_credentials&resource=https://cognitiveservices.azure.com/&client_id=$clientId&client_secret=$clientSecret"
 
@@ -95,9 +129,7 @@ class MainActivity : AppCompatActivity() {
             throw IOException(responseError.toString())
         }
     }
-
-    private lateinit var contextualWebView: WebView
-
+    
     data class Content(var title: String,
                        var chunks: List<Chunk>)
 
@@ -105,16 +137,22 @@ class MainActivity : AppCompatActivity() {
                      var lang: String,
                      var mimeType: String)
 
-    data class Options(var exitCallback: String,
-                       var uiLang: String,
-                       var timeout: Int)
+    // Only includes Immersive Reader options relevant to Android apps.
+    // For a complete list see https://github.com/microsoft/immersive-reader-sdk/blob/master/js/src/options.ts
+    data class Options(var uiLang: String, // Language of the UI, e.g. en, es-ES (optional). Defaults to browser language if not specified.
+                       var timeout: Int, // Duration (in milliseconds) before launchAsync fails with a timeout error (default is 15000 ms).
+                       var uiZIndex: Int, // Z-index of the iframe that will be created (default is 1000)
+                       var onExit: (() -> Any)?, // Executes when the Immersive Reader exits
+                       var customDomain: String, // Reserved for internal use. Custom domain where the Immersive Reader webapp is hosted (default is null).
+                       var allowFullscreen: Boolean, // The ability to toggle fullscreen (default is true).
+                       var hideExitButton: Boolean // Whether or not to hide the Immersive Reader's exit button arrow (default is false). This should only be true if there is an alternative mechanism provided to exit the Immersive Reader (e.g a mobile toolbar's back arrow).
+    )
 
     data class Error(var code: String,
                      var message: String)
 
     data class Message(var cogSvcsAccessToken: String?,
-                       var cogSvcsSubdomain: String,
-                       var resourceName: String?,
+                       var cogSvcsSubdomain: String?,
                        var request: Content,
                        var launchToPostMessageSentDurationInMs: Int,
                        var options: Options)
@@ -123,7 +161,7 @@ class MainActivity : AppCompatActivity() {
     fun loadImmersiveReaderWebView(
         exampleActivity: Activity,
         token: String?,
-        subdomain: String,
+        subdomain: String?,
         content: Content,
         options: Options) {
         if (token === "") {
@@ -139,12 +177,10 @@ class MainActivity : AppCompatActivity() {
             throw IOException(badArgumentError.toString())
         }
 
-        // Create the message variable
-        val messageData = Message(token, subdomain, null, content, 0, options)
+        val startPostMessageSentDurationInMs = Date()
 
-        // Deserialize message data class to JSON
-        val gson = Gson()
-        val message = gson.toJson(messageData)
+        // Create the message variable
+        messageData = Message(token, subdomain, content, 0, options)
 
         GlobalScope.launch {
             withContext(Dispatchers.Main) {
@@ -184,6 +220,17 @@ class MainActivity : AppCompatActivity() {
 
                     // Send message JSON object to Immersive Reader html
                     override fun onPageFinished(view: WebView, url: String) {
+                        val endPostMessageSentDurationInMs = Date()
+                        val postMessageSentDurationInMs = (endPostMessageSentDurationInMs.time - startPostMessageSentDurationInMs.time).toInt()
+
+                        // Updates launchToPostMessageSentDurationInMs
+                        messageData.launchToPostMessageSentDurationInMs = postMessageSentDurationInMs
+
+                        // Serializes message data class to JSON
+                        val gson = Gson()
+                        val message = gson.toJson(messageData)
+
+                        // Calls the handleLaunchImmersiveReader function in HTML
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
                             view.evaluateJavascript("handleLaunchImmersiveReader($message)", null)
                         } else {
@@ -195,7 +242,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                val jsInterface = WebAppInterface(exampleActivity, parentLayout, contextualWebView)
+                val jsInterface = WebAppInterface(exampleActivity, parentLayout, contextualWebView, messageData)
                 contextualWebView.addJavascriptInterface(jsInterface, "Android")
                 contextualWebView.loadUrl("file:///android_asset/immersiveReader.html")
             }
