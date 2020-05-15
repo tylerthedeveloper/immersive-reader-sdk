@@ -12,6 +12,7 @@ export type Options = {
     hideExitButton?: boolean;  // Whether or not to hide the Immersive Reader's exit button arrow (default is false). This should only be true if there is an alternative mechanism provided to exit the Immersive Reader (e.g a mobile toolbar's back arrow).
     cookiePolicy?: CookiePolicy;             // Setting for the Immersive Reader's cookie usage (default is CookiePolicy.Disable). It's the responsibility of the host application to obtain any necessary user consent in accordance with EU Cookie Compliance Policy.
     disableFirstRun?: boolean;               // Disable the first run experience.
+    features: FeatureOptions;
     readAloudOptions?: ReadAloudOptions;     // Options to configure Read Aloud.
     translationOptions?: TranslationOptions; // Options to configure Translation.
     internalOptions?: InternalOptions;       // Options reserved for internal use.
@@ -29,6 +30,13 @@ export type TranslationOptions = {
     language: string;                         // Set the translation language, e.g. fr-FR, es-MX, zh-Hans-CN. Required to automatically enable word or document translation.
     autoEnableDocumentTranslation?: boolean;  // Automatically translate the entire document
     autoEnableWordTranslation?: boolean;      // Automatically enable word translation
+};
+
+export type FeatureOptions = {
+    disableReadAloud?: boolean;             // Disable the Read Aloud feature
+    disablePictureDictionary?: boolean;     // Disable the Picture Dictionary feature
+    disableTranslation?: boolean;           // Disable the translation feature
+    disableGrammar?: boolean;               // Disable the grammar feature
 };
 
 export type InternalOptions = {
