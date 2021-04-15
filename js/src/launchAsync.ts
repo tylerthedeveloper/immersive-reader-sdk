@@ -84,13 +84,8 @@ export function launchAsync(token: string, subdomain: string, content: Content, 
         const startTime = Date.now();
         options = {
             ...options,
-            uiZIndex: 1000,
-            timeout: 15000,  // Default to 15 seconds
-            useWebview: false,
-            allowFullscreen: true,
-            hideExitButton: false,
-            cookiePolicy: CookiePolicy.Disable,
-            // TODO: options should be set to not override existing props, not sure how this hasnt broken anything yet...
+            // FIXME: options should be set to not override existing props, not sure how this hasnt broken anything yet...
+            // Is there a reason this was set last?
             // let a = {
             //     b: 'b',
             //     d: 'd'
@@ -101,7 +96,14 @@ export function launchAsync(token: string, subdomain: string, content: Content, 
             //     b: 'c',
             //   }
             //   console.log(x)              
-            appId: options.appId
+            // this should yield { b: 'c', d: 'd'} -> current logic youd get { b: 'b', d: 'd'} and lose the spread operation values
+            uiZIndex: 1000,
+            timeout: 15000,  // Default to 15 seconds
+            useWebview: false,
+            allowFullscreen: true,
+            hideExitButton: false,
+            cookiePolicy: CookiePolicy.Disable,
+            cognitiveAppId: options.cognitiveAppId
         };
 
         // Ensure that we were given a number for the UI z-index
@@ -258,8 +260,8 @@ export function launchAsync(token: string, subdomain: string, content: Content, 
             src += '&omkt=' + options.uiLang;
         }
 
-        if (options.appId) {
-            src += '&appId=' + options.appId;
+        if (options.cognitiveAppId) {
+            src += '&cognitiveAppId=' + options.cognitiveAppId;
         }
 
         iframe.src = src;
