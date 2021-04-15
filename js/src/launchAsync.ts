@@ -83,13 +83,25 @@ export function launchAsync(token: string, subdomain: string, content: Content, 
         isLoading = true;
         const startTime = Date.now();
         options = {
+            ...options,
             uiZIndex: 1000,
             timeout: 15000,  // Default to 15 seconds
             useWebview: false,
             allowFullscreen: true,
             hideExitButton: false,
             cookiePolicy: CookiePolicy.Disable,
-            ...options
+            // TODO: options should be set to not override existing props, not sure how this hasnt broken anything yet...
+            // let a = {
+            //     b: 'b',
+            //     d: 'd'
+            //   }
+
+            //   let x = {
+            //     ...a,
+            //     b: 'c',
+            //   }
+            //   console.log(x)              
+            appId: options.appId
         };
 
         // Ensure that we were given a number for the UI z-index
@@ -244,6 +256,10 @@ export function launchAsync(token: string, subdomain: string, content: Content, 
 
         if (options.uiLang) {
             src += '&omkt=' + options.uiLang;
+        }
+
+        if (options.appId) {
+            src += '&appId=' + options.appId;
         }
 
         iframe.src = src;
